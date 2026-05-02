@@ -18,7 +18,7 @@ pub struct ChatCompletionRequest {
     pub stream: bool,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub struct Message {
     pub role: String,
     pub content: String,

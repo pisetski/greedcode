@@ -19,22 +19,18 @@ impl OpenRouterClient {
         }
     }
 
-    pub async fn create_chat_completion<S, W>(
+    pub async fn create_chat_completion<W>(
         &self,
         model_id: &str,
-        prompt: S,
+        messages: &[Message],
         writer: &mut ResponseWriter<W>,
-    ) -> Result<()>
+    ) -> Result<String>
     where
-        S: Into<String>,
         W: std::io::Write,
     {
         let request = ChatCompletionRequest {
             model: model_id.to_string(),
-            messages: vec![Message {
-                role: "user".to_string(),
-                content: prompt.into(),
-            }],
+            messages: messages.to_vec(),
             stream: true,
         };
 
@@ -56,6 +52,7 @@ impl OpenRouterClient {
 
         let mut stream = response.bytes_stream();
         let mut line_buffer = LineBuffer::new();
+        let mut assistant_text = String::new();
 
         while let Some(chunk) = stream.next().await {
             let bytes = chunk.map_err(|e| anyhow!("Error parsing stream: {}", e))?;
@@ -63,29 +60,31 @@ impl OpenRouterClient {
 
             for line in lines {
                 let event = process_sse_line(&line)?;
-                if handle_sse_event(event, writer)? {
-                    return Ok(());
+                if handle_sse_event(event, writer, &mut assistant_text)? {
+                    return Ok(assistant_text);
                 }
             }
         }
 
         if let Some(line) = line_buffer.flush()? {
             let event = process_sse_line(&line)?;
-            if handle_sse_event(event, writer)? {
-                return Ok(());
+            if handle_sse_event(event, writer, &mut assistant_text)? {
+                return Ok(assistant_text);
             }
         }
 
-        Ok(())
+        Err(anyhow!("Error parsing stream: stream ended before [DONE]"))
     }
 }
 
 fn handle_sse_event<W: std::io::Write>(
     event: SseEvent,
     writer: &mut ResponseWriter<W>,
+    assistant_text: &mut String,
 ) -> Result<bool> {
     match event {
         SseEvent::Content(content) => {
+            assistant_text.push_str(&content);
             writer.push_delta(&content)?;
             Ok(false)
         }

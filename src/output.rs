@@ -412,7 +412,7 @@ fn render_markdown_to_ansi(markdown: &str) -> String {
                 TagEnd::Link => {
                     state.pop_style(InlineStyle::Link);
                     if let Some(link) = state.link_stack.pop() {
-                        state.output.push_str(" ");
+                        state.output.push(' ');
                         state.output.push_str("\x1b[2m<");
                         state.write_text(&link.dest);
                         state.output.push_str(">\x1b[0m");
@@ -486,7 +486,7 @@ fn sanitize_text(text: &str) -> String {
 
         if chars.peek() == Some(&'[') {
             chars.next();
-            while let Some(next) = chars.next() {
+            for next in chars.by_ref() {
                 if matches!(next, '@'..='~') {
                     break;
                 }
