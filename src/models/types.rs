@@ -6,11 +6,6 @@ pub struct ShirManModelsResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ShirManModelWrapper {
-    pub models: Vec<ShirManModel>,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct ShirManModel {
     pub id: String,
     pub name: Option<String>,
@@ -37,8 +32,6 @@ pub struct ChatCompletionResponse {
 #[derive(Debug, Deserialize)]
 pub struct Choice {
     pub delta: Delta,
-    #[serde(default)]
-    pub finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -46,3 +39,4 @@ pub struct Delta {
     #[serde(default)]
     pub content: Option<String>,
 }
+

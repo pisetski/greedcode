@@ -6,7 +6,6 @@ use clap::Parser;
 
 mod api;
 mod models;
-mod output;
 
 use api::openrouter::OpenRouterClient;
 use api::shirman::ShirManClient;
