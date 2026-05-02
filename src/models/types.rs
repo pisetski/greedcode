@@ -39,4 +39,3 @@ pub struct Delta {
     #[serde(default)]
     pub content: Option<String>,
 }
-

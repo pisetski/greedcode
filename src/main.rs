@@ -1,14 +1,16 @@
 use std::fs;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, IsTerminal};
 
 use anyhow::Result;
 use clap::Parser;
 
 mod api;
 mod models;
+mod output;
 
 use api::openrouter::OpenRouterClient;
 use api::shirman::ShirManClient;
+use output::{MarkdownMode, ResponseWriter};
 
 fn load_dotenv() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
@@ -37,6 +39,9 @@ fn load_dotenv() {
 struct Cli {
     #[arg(help = "Prompt to send to the model")]
     prompt: Vec<String>,
+
+    #[arg(long, value_enum, default_value_t = MarkdownMode::Auto)]
+    markdown: MarkdownMode,
 }
 
 #[tokio::main]
@@ -61,9 +66,16 @@ async fn main() -> Result<()> {
     let model_name = model.name.as_deref().unwrap_or(&model.id);
     eprintln!("Using model: {} ({})", model_name, model.id);
 
+    let stdout_is_terminal = io::stdout().is_terminal();
+    let stdout = io::stdout();
+    let stdout_lock = stdout.lock();
+    let mut writer = ResponseWriter::new(stdout_lock, cli.markdown, stdout_is_terminal);
+
     let openrouter = OpenRouterClient::new(api_key);
-    openrouter.create_chat_completion(&model.id, prompt).await?;
+    openrouter
+        .create_chat_completion(&model.id, prompt, &mut writer)
+        .await?;
+    writer.finish()?;
 
     Ok(())
 }
-

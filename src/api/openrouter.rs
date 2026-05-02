@@ -1,8 +1,8 @@
 use crate::models::types::{ChatCompletionRequest, Message};
+use crate::output::ResponseWriter;
 use anyhow::{Result, anyhow};
 use futures_util::stream::StreamExt;
 use reqwest::Client;
-use std::io::Write;
 
 const OPENROUTER_API_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -19,9 +19,15 @@ impl OpenRouterClient {
         }
     }
 
-    pub async fn create_chat_completion<S>(&self, model_id: &str, prompt: S) -> Result<()>
+    pub async fn create_chat_completion<S, W>(
+        &self,
+        model_id: &str,
+        prompt: S,
+        writer: &mut ResponseWriter<W>,
+    ) -> Result<()>
     where
         S: Into<String>,
+        W: std::io::Write,
     {
         let request = ChatCompletionRequest {
             model: model_id.to_string(),
@@ -57,7 +63,7 @@ impl OpenRouterClient {
 
             for line in lines {
                 let event = process_sse_line(&line)?;
-                if handle_sse_event(event)? {
+                if handle_sse_event(event, writer)? {
                     return Ok(());
                 }
             }
@@ -65,7 +71,7 @@ impl OpenRouterClient {
 
         if let Some(line) = line_buffer.flush()? {
             let event = process_sse_line(&line)?;
-            if handle_sse_event(event)? {
+            if handle_sse_event(event, writer)? {
                 return Ok(());
             }
         }
@@ -74,13 +80,13 @@ impl OpenRouterClient {
     }
 }
 
-fn handle_sse_event(event: SseEvent) -> Result<bool> {
+fn handle_sse_event<W: std::io::Write>(
+    event: SseEvent,
+    writer: &mut ResponseWriter<W>,
+) -> Result<bool> {
     match event {
         SseEvent::Content(content) => {
-            print!("{}", content);
-            std::io::stdout()
-                .flush()
-                .map_err(|e| anyhow!("Error writing output: {}", e))?;
+            writer.push_delta(&content)?;
             Ok(false)
         }
         SseEvent::Done => Ok(true),

@@ -1,2 +1,2 @@
-pub mod shirman;
 pub mod openrouter;
+pub mod shirman;

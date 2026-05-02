@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Result};
-use reqwest::Client;
 use crate::models::types::{ShirManModel, ShirManModelsResponse};
+use anyhow::{Result, anyhow};
+use reqwest::Client;
 
 const SHIR_MAN_API_URL: &str = "https://shir-man.com/api/free-llm/top-models";
 
@@ -16,7 +16,8 @@ impl ShirManClient {
     }
 
     pub async fn fetch_top_model(&self) -> Result<ShirManModel> {
-        let response = self.client
+        let response = self
+            .client
             .get(SHIR_MAN_API_URL)
             .send()
             .await
@@ -33,7 +34,8 @@ impl ShirManClient {
             .await
             .map_err(|e| anyhow!("Error fetching models: {}", e))?;
 
-        wrapper.models
+        wrapper
+            .models
             .into_iter()
             .next()
             .ok_or_else(|| anyhow!("No free models available"))
