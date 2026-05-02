@@ -56,34 +56,35 @@ impl OpenRouterClient {
             let lines = line_buffer.push(&bytes)?;
 
             for line in lines {
-                match process_sse_line(&line)? {
-                    SseEvent::Content(content) => {
-                        print!("{}", content);
-                        std::io::stdout()
-                            .flush()
-                            .map_err(|e| anyhow!("Error writing output: {}", e))?;
-                    }
-                    SseEvent::Done => return Ok(()),
-                    SseEvent::Ignore => {}
+                let event = process_sse_line(&line)?;
+                if handle_sse_event(event)? {
+                    return Ok(());
                 }
             }
         }
 
-        // Process any remaining data in the buffer after the stream ends.
         if let Some(line) = line_buffer.flush()? {
-            match process_sse_line(&line)? {
-                SseEvent::Content(content) => {
-                    print!("{}", content);
-                    std::io::stdout()
-                        .flush()
-                        .map_err(|e| anyhow!("Error writing output: {}", e))?;
-                }
-                SseEvent::Done => return Ok(()),
-                SseEvent::Ignore => {}
+            let event = process_sse_line(&line)?;
+            if handle_sse_event(event)? {
+                return Ok(());
             }
         }
 
         Ok(())
+    }
+}
+
+fn handle_sse_event(event: SseEvent) -> Result<bool> {
+    match event {
+        SseEvent::Content(content) => {
+            print!("{}", content);
+            std::io::stdout()
+                .flush()
+                .map_err(|e| anyhow!("Error writing output: {}", e))?;
+            Ok(false)
+        }
+        SseEvent::Done => Ok(true),
+        SseEvent::Ignore => Ok(false),
     }
 }
 
